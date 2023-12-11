@@ -14,6 +14,8 @@ typedef struct {
     node *tail;
 } BigNumber;
 
+BigNumber subtraction(BigNumber bn1, BigNumber bn2);
+
 void init_big_number(BigNumber *bn) {
     bn->size = 0;
     bn->sign = 0;
@@ -34,23 +36,23 @@ void remove_leading_zeros(BigNumber *bn) {
     BigNumber new;
     init_big_number(&new);
 //возможно, получится заменить follow на temp->prev
-    while (temp && temp->data == 0){
+    while (temp && temp->data == 0) {
         follow = temp;
         temp = temp->next;
         free(follow);
         count++;
     }
 
-    if (temp == NULL){
+    if (temp == NULL) {
         *bn = new;
         return;
     }
     temp->prev = NULL;
     bn->head = temp;
-    bn->size -=count;
+    bn->size -= count;
 }
 
-void destroy_big_number(BigNumber *bn){
+void destroy_big_number(BigNumber *bn) {
     node *temp = bn->head;
     node *follow = NULL;
 
@@ -58,23 +60,23 @@ void destroy_big_number(BigNumber *bn){
     init_big_number(&new);
     *bn = new;
 //возможно, получится заменить follow на temp->prev
-    while (temp){
+    while (temp) {
         follow = temp;
         temp = temp->next;
         free(follow);
     }
 }
 
-void print_big_number(BigNumber bn){
+void print_big_number(BigNumber bn) {
     node *temp = bn.head;
-    if(bn.size == 0){
-        printf( "0\n");
+    if (bn.size == 0) {
+        printf("0\n");
         return;
     }
-    if(bn.sign){
+    if (bn.sign) {
         printf("-");
     }
-    while(temp){
+    while (temp) {
         if (temp->data < 10)
             printf("%c", temp->data + '0');
         else
@@ -84,31 +86,29 @@ void print_big_number(BigNumber bn){
     printf("\n");
 }
 
-void insert_in_front(BigNumber *bn, int value){
+void insert_in_front(BigNumber *bn, int value) {
     node *temp = malloc(sizeof(node));
-    if(temp){
+    if (temp) {
         temp->prev = temp->next = NULL;
         temp->data = value;
-    }
-    else return;//дописать ошибку выделения памяти
-    if(bn->head == NULL){
+    } else return;//дописать ошибку выделения памяти
+    if (bn->head == NULL) {
         bn->head = temp;
         bn->tail = temp;
-    }
-    else{
+    } else {
         bn->head->prev = temp;
         temp->next = bn->head;
         bn->head = temp;
     }
     bn->size++;
 }
+
 void insert_in_end(BigNumber *bn, int value) {
-    node* temp = malloc(sizeof(node));
-    if(temp) {
+    node *temp = malloc(sizeof(node));
+    if (temp) {
         temp->next = temp->prev = NULL;
         temp->data = value;
-    }
-    else return;//дописать ошибку выделения памяти
+    } else return;//дописать ошибку выделения памяти
     if (bn->tail == NULL)
         bn->head = bn->tail = temp;
     else {
@@ -119,8 +119,206 @@ void insert_in_end(BigNumber *bn, int value) {
     bn->size++;
 }
 
-int length(BigNumber bn){
+int length(BigNumber bn) {
     return bn.size;
+}
+
+/* Сравнивает два числа и возвращает:
+ * 0 если числа равны
+ * 1 если больше первое число
+ * 2 если больше второе число
+ */
+int compare(BigNumber bn1, BigNumber bn2) {
+    remove_leading_zeros(&bn1);
+    remove_leading_zeros(&bn2);
+
+    BigNumber a = bn1;
+    BigNumber b = bn2;
+
+    int flag = 0;
+
+    if (a.sign != b.sign) {
+        if (b.sign)
+            return 1;
+        else
+            return 2;
+    } else if (a.sign)
+        flag = 1;
+    if (a.size != b.size) {
+        if (flag)
+            return (a.size > b.size) + 1;
+        else
+            return (a.size < b.size) + 1;
+    } else {
+        while (a.head != NULL && b.head != NULL) {
+            if (a.head->data > b.head->data) {
+                if (flag)
+                    return 2;
+                else
+                    return 1;
+            } else if (a.head->data < b.head->data) {
+                if (flag)
+                    return 1;
+                else
+                    return 2;
+            } else {
+                a.head = a.head->next;
+                b.head = b.head->next;
+            }
+        }
+        return 0;
+    }
+}
+
+BigNumber addition(BigNumber bn1, BigNumber bn2) {
+    remove_leading_zeros(&bn1);
+    remove_leading_zeros(&bn2);
+
+    BigNumber a = bn1;
+    BigNumber b = bn2;
+
+    BigNumber result;
+
+    int macro, micro = 0;
+    init_big_number(&result);
+
+    if (a.sign != b.sign) {
+        if (b.sign) {
+            change_sign(&b);
+            return subtraction(a, b);
+        }
+    } else
+        result.sign = a.sign;
+
+    while (a.tail != NULL || b.tail != NULL) {
+        if (a.tail != NULL && b.tail != NULL) {
+            micro = (a.tail->data + b.tail->data + macro) % 10;
+            macro = (a.tail->data + b.tail->data + macro) / 10;
+            a.tail = a.tail->prev;
+            b.tail = b.tail->prev;
+        }
+        if (b.tail == NULL) {
+            micro = (a.tail->data + macro) % 10;
+            macro = (a.tail->data + macro) / 10;
+            a.tail = a.tail->prev;
+        }
+        if (a.tail == NULL) {
+            micro = (b.tail->data + macro) % 10;
+            macro = (b.tail->data + macro) / 10;
+            b.tail = b.tail->prev;
+        }
+        insert_in_front(&result, micro);
+    }
+    if (macro != 0)
+        insert_in_front(&result, macro);
+
+    return result;
+}
+
+BigNumber subtraction(BigNumber bn1, BigNumber bn2) {
+    remove_leading_zeros(&bn1);
+    remove_leading_zeros(&bn2);
+
+    BigNumber a = bn1;
+    BigNumber b = bn2;
+
+    int macro, micro, flag = 0;
+    BigNumber result, temp;
+    init_big_number(&result);
+
+    if (a.sign != b.sign) {
+        change_sign(&b);
+        return addition(a, b);
+    } else if (a.sign && b.sign) {
+        change_sign(&a);
+        change_sign(&b);
+        flag = 1;
+    }
+
+    if (compare(a, b) == 0)
+        return result;
+    if (compare(a, b) == 2) {
+        change_sign(&result);
+        temp = a;
+        a = b;
+        b = temp;
+    }
+    while (a.tail != NULL || b.tail != NULL) {
+        if (a.tail != NULL && b.tail != NULL) {
+            if (a.tail->data >= b.tail->data + macro) {
+                micro = (a.tail->data - b.tail->data - macro);
+                macro = 0;
+            } else {
+                micro = (a.tail->data + 10 - b.tail->data - macro);
+                macro = 1;
+            }
+            a.tail = a.tail->prev;
+            b.tail = b.tail->prev;
+        }
+        if (b.tail == NULL) {
+            if (a.tail->data >= macro) {
+                micro = a.tail->data - macro;
+                macro = 0;
+            } else {
+                micro = a.tail->data + 10 - macro;
+                macro = 1;
+            }
+            a.tail = a.tail->prev;
+        }
+        insert_in_front(&result, micro);
+    }
+    remove_leading_zeros(&result);
+
+    if (flag)
+        change_sign(&result);
+
+    return result;
+}
+
+BigNumber multiplication(BigNumber bn1, BigNumber bn2) {
+    remove_leading_zeros(&bn1);
+    remove_leading_zeros(&bn2);
+    BigNumber a = bn1;
+    BigNumber b = bn2;
+
+    int i, count = 0;
+    BigNumber result, temp, fake_a;
+    init_big_number(&result);
+
+    if (a.size == 0 || b.size == 0)
+        return result;
+    if (b.size > a.size) {
+        temp = a;
+        a = b;
+        b = temp;
+    }
+    init_big_number(&temp);
+    while (b.tail != NULL) {
+        int micro, macro = 0;
+        fake_a = a;
+        while (a.tail != NULL) {
+            micro = (fake_a.tail->data * b.tail->data + macro) % 10;
+            macro = (fake_a.tail->data * b.tail->data + macro) / 10;
+            insert_in_front(&temp, micro);
+            fake_a.tail = fake_a.tail->prev;
+        }
+        if(macro != 0)
+            insert_in_front(&temp, macro);
+
+        for(i = 0; i < count; i++){
+            insert_in_end(&temp, 0);
+        }
+        result = addition(result, temp);
+        count++;
+        b.tail = b.tail->prev;
+        destroy_big_number(&temp);
+    }
+    if(a.sign == b.sign)
+        result.sign = 0;
+    else
+        result.sign = 1;
+
+    return result;
 }
 
 int main() {
