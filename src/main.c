@@ -302,10 +302,10 @@ BigNumber multiplication(BigNumber bn1, BigNumber bn2) {
             insert_in_front(&temp, micro);
             fake_a.tail = fake_a.tail->prev;
         }
-        if(macro != 0)
+        if (macro != 0)
             insert_in_front(&temp, macro);
 
-        for(i = 0; i < count; i++){
+        for (i = 0; i < count; i++) {
             insert_in_end(&temp, 0);
         }
         result = addition(result, temp);
@@ -313,11 +313,79 @@ BigNumber multiplication(BigNumber bn1, BigNumber bn2) {
         b.tail = b.tail->prev;
         destroy_big_number(&temp);
     }
-    if(a.sign == b.sign)
+    if (a.sign == b.sign)
         result.sign = 0;
     else
         result.sign = 1;
 
+    return result;
+}
+
+BigNumber division(BigNumber bn1, BigNumber bn2) {
+    remove_leading_zeros(&bn1);
+    remove_leading_zeros(&bn2);
+
+    BigNumber a = bn1;
+    BigNumber b = bn2;
+    BigNumber one;
+    init_big_number(&one);
+    insert_in_end(&one, 1);
+
+    BigNumber ex, mp, pr, result;
+    init_big_number(&ex);
+    init_big_number(&mp);
+    init_big_number(&pr);
+    init_big_number(&result);
+
+    char sign = 0;
+    if (a.sign != b.sign)
+        sign = 1;
+
+    if (b.size == 0) {
+        fprintf(stderr, "%s", "Zero division\n");
+        //написать возвращаемое значение для ошибки
+        return ex;
+    }
+    if (compare(a, b) == 2)
+        return result;
+    else {
+        one.sign = sign;
+        return one;
+    }
+    while(a.head != NULL){
+        int i = 0;
+        for (i = 0; i < b.size && a.head; i++) {
+            insert_in_end(&ex, a.head->data);
+            a.head = a.head->next;
+        }
+        for (i = 1; i < 10; i++) {
+            insert_in_end(&mp,i);
+            pr = multiplication(b,mp);
+            if(compare(pr, ex) == 1){
+                destroy_big_number(&mp);
+                destroy_big_number(&pr);
+                break;
+            }
+            destroy_big_number(&mp);
+            destroy_big_number(&pr);
+        }
+        int multiplier = i-1;
+
+        insert_in_end(&mp, multiplier);
+        pr = multiplication(b, mp);
+        ex = subtraction(ex, pr);
+
+        insert_in_end(&result, multiplier);
+        remove_leading_zeros(&result);
+
+        destroy_big_number(&pr);
+        destroy_big_number(&mp);
+
+        a.head = a.head->next;
+    }
+    destroy_big_number(&ex);
+    remove_leading_zeros(&result);
+    result.sign = sign;
     return result;
 }
 
